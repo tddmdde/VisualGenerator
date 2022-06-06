@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visuals Operator</title>
+    <link rel="stylesheet" href="https://www.technodom.kz/under/feed/tddmdui/resources/index.min.css">
+</head>
+
+<body>
+
+    {{ topnav|safe }}
+
+    <div class="wrapper">
+        <form id='form_target' class="wrapper-form" action="">
+            <select class="select" name="template_group" id="template_group">
+                <option value='click_me' selected='true' disabled>Выберите Шаблон</option>
+            </select>
+            <div class="wrapper-form-container">
+
+            </div>
+        </form>
+
+    </div>
+    <div class="result-container">
+        <p class="result-container__warning warning hidden" id="warning">
+            Предупреждение
+        </p>
+        <div class="copy-link-container hidden">
+            <input value="" type="text" class="copy-link-input" id="copy-link-input">
+            <button class="form-input copy-link-btn" type="button">Копировать</button>
+            <button class="form-input submit-btn" type="button" id='send_to_telegram' onclick="post_to_tg()">Отправить в Telegram</button>
+        </div>
+    </div>
+    <script src="https://www.technodom.kz/under/feed/tddmdui/resources/index.min.js"></script>
+    <script>
+
+        function post_to_tg() {
+            let sku = document.getElementById("sku").value
+            let title = document.getElementById("title").value
+            let title_bottom = document.getElementById("title_bottom").value
+            let event_value = document.getElementById("event_value").value
+            let event_name = document.getElementById("event_name").value
+            let locale = document.getElementById("locale").value
+            let template_group = document.getElementById("template_group").value
+            let image_link = document.getElementById("copy-link-input").value
+
+            let event_value_2 = "None"
+            let event_name_2 = "None"
+
+            if (template_group=='2_events') {
+                event_value_2 = document.getElementById("event_value_2").value
+                event_name_2 = document.getElementById("event_name_2").value
+            }
+
+
+
+            let object_to_send = {
+                "sku":sku,
+                "title":title,
+                "title_bottom":title_bottom,
+                "event_value":event_value,
+                "event_value_2":event_value_2,
+                "event_name_2":event_name_2,
+                "event_name":event_name,
+                "locale":locale,
+                "template_group":template_group,
+                "image_link":image_link
+            }
+
+            fetch('visuals/post_to_tg',
+                {
+                    method:'POST',
+                    body: JSON.stringify(object_to_send)
+                })
+
+
+
+        }
+
+        async function getTemplateOptions(url) {
+            const response = await fetch(url);
+            const data = await response.json();
+            data.data.forEach(item => {
+                const option = document.createElement("option");
+                option.textContent = item.text;
+                option.value = item.value;
+                document.querySelector('#template_group').append(option);
+            })
+
+            document.querySelector('#template_group').addEventListener("change", e => {
+                console.log('i work');
+                const value = document.querySelector('#template_group').value;
+                console.log(value);
+                getTemplateLayout(`visuals/templates/${value}`);
+
+            })
+        }
+
+
+
+
+        async function getTemplateLayout(url) {
+            const response = await fetch(url);
+            const layout = response.text();
+            console.log(layout);
+            document.querySelector('.wrapper-form-container').innerHTML = await layout;
+        }
+
+        getTemplateOptions('visuals/get_templates')
+
+
+
+        function getDataSKU(target_form) {
+
+            var response_json;
+            var object = {};
+            new FormData(target_form).forEach(function (value, key) {
+                if (value != '') {
+                    object[key] = value;
+                }
+            });
+
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState == XMLHttpRequest.DONE) {
+                    response_json = JSON.parse(xhr.responseText);
+                    console.log(response_json);
+                    if (response_json.is_available == 'False') {
+                        alert('В выбранном регионе этот товар не доступен');
+                        document.querySelector('form > div  #title ').value = '';
+                        document.querySelector('form > div  #price_old ').value = '';
+                        document.querySelector('form > div  #price_current ').value = '';
+                        document.querySelector('form > div  #vendor ').value = '';
+                        return 0
+                    }
+                    document.querySelector('form > div  #title ').value = response_json.title;
+                    document.querySelector('form > div  #price_old ').value = response_json.price_old;
+                    document.querySelector('form > div  #price_current ').value = response_json.price_current;
+                    document.querySelector('form > div  #vendor ').value = response_json.vendor;
+                }
+            };
+
+
+
+
+
+            var json = JSON.stringify(object);
+
+            xhr.open('POST', 'visuals/get_data_from_sku');
+            xhr.send(json);
+
+        }
+
+        function copyToClipboard(e, cont_class) {
+            const btn = e.target;
+            let linkInput = document.getElementById(cont_class);
+            linkInput.select();
+            document.execCommand('copy');
+
+            if (btn.textContent !== 'Готово!') {
+                const originalText = btn.textContent;
+                btn.textContent = 'Готово!';
+                btn.classList.add('copy-link-btn--success');
+
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copy-link-btn--success');
+                }, 1500);
+            }
+        }
+
+        document
+            .querySelector('.copy-link-btn')
+            .addEventListener('click', function (e) {
+                copyToClipboard(e, 'copy-link-input')
+            });
+
+        function generate(target_form) {
+            alert('Начинаю процесс генерации. Не нужно нажимать еще раз на кнопки.');
+            if (!document.querySelector('.warning').classList.contains('hidden')) {
+                document.querySelector('.warning').classList.add('hidden');
+            }
+            if (document.getElementById('result-image')) {
+                document.getElementById('result-image').remove();
+            }
+            var response_json;
+            var object = {};
+            new FormData(target_form).forEach(function (value, key) {
+                if (value != '') {
+                    object[key] = value;
+                }
+            });
+            console.log(object);
+
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState == XMLHttpRequest.DONE) {
+                    response_json = JSON.parse(xhr.responseText);
+                    result_link = response_json.link;
+                    width = response_json.width
+                    height = response_json.height
+
+                    document
+                        .querySelector('.copy-link-container')
+                        .classList.remove('hidden');
+                    document.querySelector('#copy-link-input').value = result_link;
+                    const img = document.createElement('img');
+
+                    img.id = 'result-image';
+                    img.className = 'result-container__image';
+                    img.src = result_link;
+
+                    img.cssText = 'width:'+width+'px;height:'+height+'px';
+                    img.style['width'] = width+'px';
+                    img.style['height'] = height+'px';
+                    document.querySelector('.result-container').append(img);
+
+                }
+            };
+
+
+
+            var json = JSON.stringify(object);
+
+            xhr.open('POST', 'visuals/generate');
+            xhr.send(json);
+
+        }
+    </script>
+
+
+
+
+</body></html>

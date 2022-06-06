@@ -1,0 +1,46 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  # CONTAINER_IMAGE: ${DOCKER_REGISTRY_URL}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}:r${CI_PIPELINE_ID}
+  CONTAINER_IMAGE: ${DOCKER_REGISTRY_URL}/${CI_PROJECT_NAME}/${CI_PROJECT_NAME}:r${CI_PIPELINE_ID}
+before_script:
+  - export CI_PROJECT_NAMESPACE=$(echo ${CI_PROJECT_NAMESPACE} | sed 's/evax\///')
+  - export CONTAINER_IMAGE=$(echo ${CONTAINER_IMAGE} | sed 's/evax\///')
+
+include:
+  - project: 'ci-cd-developers/gitlab-pipelines'
+    file: 'docker-build/docker-build-template.yml'
+  - project: 'ci-cd-developers/gitlab-pipelines'
+    file: 'kubernetes-deploy/stage-deploy-template.yml'
+  - project: 'ci-cd-developers/gitlab-pipelines'
+    file: 'kubernetes-deploy/prod-deploy-template.yml'
+
+docker-build:
+  tags:
+    - marketing
+  only:
+    refs:
+      - master
+  except:
+      - branch
+
+kube-stage-deploy:
+  tags:
+    - marketing
+  only:
+    refs:
+      - master
+  except:
+      - branch
+
+kube-prod-deploy:
+  tags:
+    - marketing
+  only:
+    refs:
+      - master
+  except:
+      - branch
+  when: manual

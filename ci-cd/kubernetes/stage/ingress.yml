@@ -1,0 +1,20 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: marketing-vs
+  namespace: marketing-stage
+spec:
+  gateways:
+  - main-gateway.istio-system.svc.cluster.local
+  hosts:
+  - marketing-stage.technodom.kz
+  http:
+  - name: "marketing"
+    match:
+    - uri:
+        regex: /(.*)
+    route:
+    - destination:
+        host: marketing
+        port:
+          number: 80

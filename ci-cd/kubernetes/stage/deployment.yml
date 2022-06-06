@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marketing
+  namespace: marketing-stage
+spec:
+  replicas: 40
+  selector:
+    matchLabels:
+      app: marketing
+  template:
+    metadata:
+      labels:
+        app: marketing
+    spec:
+      containers:
+        - name: marketing
+          image: harbor.technodom.kz/marketing/marketing:r<VERSION>
+          resources:
+            requests:
+              memory: '150Mi'
+              cpu: '150m'
+            limits:
+              memory: '180Mi'
+              cpu: '180m'
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          volumeMounts:
+              - name: tz-config
+                mountPath: /etc/timezone
+              - name: lt-config
+                mountPath: /etc/localtime
+      imagePullSecrets:
+      - name: harbor-pull-secret
+      restartPolicy: Always
+      volumes:
+        - name: tz-config
+          hostPath:
+             path: /etc/timezone
+        - name: lt-config
+          hostPath:
+              path: /etc/localtime
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: marketing
+  namespace: marketing-stage
+spec:
+  selector:
+    app: marketing
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+
